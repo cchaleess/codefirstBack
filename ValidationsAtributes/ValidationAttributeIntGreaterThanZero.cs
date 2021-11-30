@@ -10,8 +10,6 @@ namespace CodeFirst.ValidationsAtributes
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false)]
     sealed public class ValidationAttributeIntGreaterThanZero : ValidationAttribute
     {
-        // Internal field to hold the mask value.
-
         public override bool IsValid(object value)
         {
             bool result = true;

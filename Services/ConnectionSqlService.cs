@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace CodeFirst.Services
@@ -24,29 +25,51 @@ namespace CodeFirst.Services
         {
             DataTable table = new DataTable();
             int rowsAffected = 0;
-            string exception = "";
+            string sqlDataSource = _configuration.GetConnectionString("Conexion");
+            using (SqlConnection conexion = new SqlConnection(sqlDataSource))
+            {
+                using (SqlCommand cmd = new SqlCommand(query, conexion))
+                {
+                    cmd.CommandType = CommandType.Text;
+                    await conexion.OpenAsync();
+                    rowsAffected = Convert.ToInt32(cmd.ExecuteScalar());
+                    await conexion.CloseAsync();
+                }
+            }
+         
+            return rowsAffected;
+       
+}
+
+        public DataTable GetDataTableFromSql(string query)
+        {
+            DataTable table = new DataTable();
+            List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
             string sqlDataSource = _configuration.GetConnectionString("Conexion");
             try
             {
-                using (SqlConnection conexion = new SqlConnection(sqlDataSource))
+                using (SqlConnection connexion = new SqlConnection(sqlDataSource))
                 {
-                    using (SqlCommand cmd = new SqlCommand(query, conexion))
-                    {
-                        cmd.CommandType = CommandType.Text;
-                        await conexion.OpenAsync();
-                        rowsAffected = await cmd.ExecuteNonQueryAsync();
-                        await conexion.CloseAsync();
-                    }
+                    connexion.Open();
+
+                    SqlDataReader myReader;
+                    SqlCommand myCommand = new SqlCommand();
+                    myCommand.CommandText = query;
+                    myCommand.Connection = connexion;
+                    myReader = myCommand.ExecuteReader();
+                    table.Load(myReader);
+                    myReader.Close();
+                    connexion.Close();
+
                 }
             }
             catch (Exception ex)
             {
-                exception = ex.ToString();
-                return rowsAffected;
+                string exception = ex.ToString();
+                return null;
             }
-            return rowsAffected;
-       
-}
+            return table;
+        }
 
         public async Task<string> GetJsonFromSql(string query)
         {
@@ -54,8 +77,7 @@ namespace CodeFirst.Services
             JavaScriptSerializer serializer = new JavaScriptSerializer();
             List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
             string sqlDataSource = _configuration.GetConnectionString("Conexion");
-            try
-            {
+         
                 using (SqlConnection conexion = new SqlConnection(sqlDataSource))
                 {
                     await conexion.OpenAsync();
@@ -64,7 +86,6 @@ namespace CodeFirst.Services
                     SqlCommand sqlCommand = new SqlCommand();
                     sqlCommand.CommandText = query;
                     sqlCommand.Connection = conexion;
-
                     sqlDataReader = await sqlCommand.ExecuteReaderAsync();
                     table.Load(sqlDataReader);
                     sqlDataReader.Close();
@@ -81,13 +102,38 @@ namespace CodeFirst.Services
                     await conexion.CloseAsync();
 
                 }
-            }
-            catch (Exception ex)
-            {
-                string excepcion = ex.ToString();
-                return excepcion;
-            }
+         
             return serializer.Serialize(rows);
         }
+
+        public static List<T> ConvertDataTable<T>(DataTable dt)
+        {
+            List<T> data = new List<T>();
+            foreach (DataRow row in dt.Rows)
+            {
+                T item = GetItem<T>(row);
+                data.Add(item);
+            }
+            return data;
+        }
+
+        public static T GetItem<T>(DataRow dr)
+        {
+            Type temp = typeof(T);
+            T obj = Activator.CreateInstance<T>();
+
+            foreach (DataColumn column in dr.Table.Columns)
+            {
+                foreach (PropertyInfo pro in temp.GetProperties())
+                {
+                    if (pro.Name == column.ColumnName)
+                        pro.SetValue(obj, dr[column.ColumnName], null);
+                    else
+                        continue;
+                }
+            }
+            return obj;
+        }
+
     }
 }

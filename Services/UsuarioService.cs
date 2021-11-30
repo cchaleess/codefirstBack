@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.SqlClient;
 using System.Net.Sockets;
 using System.Net;
+using CodeFirst.HttpExceptions;
 
 namespace CodeFirst.Services
 {
@@ -28,79 +29,106 @@ namespace CodeFirst.Services
         public async Task<string> GetUSuariosList()
         {
             string query = "";
+            string userList = "";
             try
             {
-                query = @"select ID,NOMBRE,EMAIL from dbo.USUARIO";
-                return await _connectionSqlService.GetJsonFromSql(query);
+                query = @"select Id, Nombre,artista, genero, pais,ventas from dbo.USUARIO";
+                userList = await _connectionSqlService.GetJsonFromSql(query);
+
+                return userList;
             }
             catch (Exception ex)
             {
                 string error = ex.ToString();
-                return error;
+                return EnumExceptionsDescription.InternalError.Value;
             }
         }
        
-        public async Task<int> SaveUsuarioDb(UsuarioCreatedDTO usuarioDTO)
+        public async Task<string> SaveUsuarioDb(UsuarioCreatedDTO usuarioDTO)
         {
             string query = "";
+            int idRowInsert = 0;
             try
             {
-                query = String.Format("INSERT INTO dbo.USUARIO (Nombre,Email) VALUES('{0}', '{1}' )",
-                                      usuarioDTO.Nombre, usuarioDTO.Email);
-                return await _connectionSqlService.CrudDataToSql(query);
+                query = String.Format("INSERT INTO dbo.USUARIO, (Nombre,Email) output inserted.ID VALUES('{0}', '{1}' )",usuarioDTO.Nombre, usuarioDTO.Email);
+
+                idRowInsert = await _connectionSqlService.CrudDataToSql(query);
+
+                return idRowInsert.ToString();
             }
             catch (Exception ex)
             {
                 string error = ex.ToString();
-                return -1;
+                return EnumExceptionsDescription.InternalError.Value;
             }
         }
 
-        public async Task<int> UpdateUsuarioDb(UsuarioUpdateDTO usuarioDTO, int usuarioId)
+        public async Task<string> UpdateUsuarioDb(UsuarioUpdateDTO usuarioDTO)
         {
             string query = "";
+            int idRowUdpate = 0;
+            string response = "";
             try
             {
-                if (usuarioDTO.ID != usuarioId)
-                {
-                    return -3;
-                }
-
-                query = String.Format("UPDATE dbo.USUARIO SET NOMBRE = '{0}' , EMAIL = '{1}' WHERE ID = {2} ",
+                query = String.Format("UPDATE dbo.USUARIO SET NOMBRE = '{0}' , EMAIL = '{1}'  OUTPUT INSERTED.ID WHERE ID = {2} ",
                         usuarioDTO.Nombre, usuarioDTO.Email, usuarioDTO.ID);
 
-                return await _connectionSqlService.CrudDataToSql(query);
+                idRowUdpate = await _connectionSqlService.CrudDataToSql(query);
+
+                //si se ha actualizado (devolvemos el id borrado)
+                if (idRowUdpate > 0)
+                {
+                    response = EnumExceptionsDescription.Success.Value;
+                }
+                //no se ha actualizado
+                else
+                {
+                    response = EnumExceptionsDescription.Nofound.Value;
+                }
+
+                return response;
+
             }
             catch (Exception ex)
             {
                 string error = ex.ToString();
-                return -1;
+                return EnumExceptionsDescription.InternalError.Value;
             }
         }
 
-        public async Task<int> DeleteUsuarioDb(int usuarioId)
+        public async Task<string> DeleteUsuarioDb(int usuarioId)
         {
+
+            int idRowDelete = 0;
+            string response = "";
+            string query = "";
 
             try
             {
-               var usuarioExistente = await _context.Usuario.FindAsync(usuarioId);
+                query = String.Format("DELETE dbo.USUARIO OUTPUT deleted.ID WHERE ID ={0}", usuarioId);
 
-                if (usuarioExistente != null)
+                idRowDelete = await _connectionSqlService.CrudDataToSql(query);
+
+                //si se ha borrado (devolvemos el id borrado)
+                if (idRowDelete > 0)
                 {
-                 _context.Usuario.Remove(usuarioExistente);
-
-                return await _context.SaveChangesAsync();
-
+                    response = EnumExceptionsDescription.Success.Value;        
                 }
+                //no se ha borrado 
                 else
                 {
-                    return -2;
+                    response = EnumExceptionsDescription.Nofound.Value;
                 }
+
+                return response;
+
             }
-            catch (InvalidOperationException ex)
+            //-1 por que ha petado 
+            catch (Exception ex)
             {
                 string axel = ex.ToString();
-                return -1;
+       
+                return EnumExceptionsDescription.InternalError.Value;
             }
 
         }

@@ -1,5 +1,6 @@
 using CodeFirst.Context;
 using CodeFirst.Controllers;
+using CodeFirst.HttpExceptions;
 using CodeFirst.Interfaces;
 using CodeFirst.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -35,13 +36,14 @@ namespace CodeFirst
 
         public IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
-        {
-            services.AddCors();
+        {        
+
             services.AddScoped<IConnectionSqlService, ConnectionSqlService>();
             services.AddScoped<IUsuarioService, UsuarioService>();
+            services.AddScoped<IValidationException, ValidationException>();
 
+            services.AddCors();
             services.AddDbContext<MVCContext>(options => options.UseSqlServer(Configuration.GetConnectionString("Conexion")));
 
             // Setting configuration for protected web api

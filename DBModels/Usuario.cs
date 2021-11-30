@@ -13,6 +13,10 @@ namespace CodeFirst.DBModels
         public int ID { get; set; }
         public string Nombre { get; set; } 
         public string Email { get; set; }
+
+        public string artista { get; set; }
+        public string pais { get; set; }
+        public string ventas { get; set; }
         public List<Consulta> Consultas { get; set; }
     }
 }
