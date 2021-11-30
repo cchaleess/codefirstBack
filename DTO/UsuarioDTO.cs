@@ -13,5 +13,7 @@ namespace CodeFirst.DTO
        // [StringLength(200, ErrorMessage ="Debe tener menos de 200 caracteres")]
         public string Nombre { get; set; }
         public string Email { get; set; }
+
+        public string pepe { get; set; }
     }
 }
